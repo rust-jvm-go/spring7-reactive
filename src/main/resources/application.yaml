@@ -1,3 +1,23 @@
 spring:
   application:
     name: spring7-reactive
+
+  # Reactive access to Yugabyte via R2DBC
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/yugabyte
+    username: yugabyte
+    password:
+
+  # JDBC DataSource for Liquibase (and any future JDBC tooling)
+  datasource:
+    url: jdbc:postgresql://localhost:5433/yugabyte
+    username: yugabyte
+    password:
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+  sql:
+    init:
+      mode: never
