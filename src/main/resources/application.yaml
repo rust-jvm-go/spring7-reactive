@@ -6,13 +6,13 @@ spring:
   r2dbc:
     url: r2dbc:postgresql://localhost:5433/yugabyte
     username: yugabyte
-    password:
+    password: yugabyte
 
   # JDBC DataSource for Liquibase (and any future JDBC tooling)
   datasource:
     url: jdbc:postgresql://localhost:5433/yugabyte
     username: yugabyte
-    password:
+    password: yugabyte
 
   liquibase:
     enabled: true
