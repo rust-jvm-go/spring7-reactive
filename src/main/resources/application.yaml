@@ -4,15 +4,24 @@ spring:
 
   # Reactive access to Yugabyte via R2DBC
   r2dbc:
-    url: r2dbc:postgresql://localhost:5433/yugabyte
+    url: r2dbc:postgresql://127.0.0.1:5433/yugabyte?sslmode=disable
     username: yugabyte
     password: yugabyte
+    pool:
+      max-size: 10
+      max-idle-time: 10s
+      max-life-time: 20s
+      validation-query: SELECT 1;
 
   # JDBC DataSource for Liquibase (and any future JDBC tooling)
   datasource:
-    url: jdbc:postgresql://localhost:5433/yugabyte
+    url: jdbc:postgresql://127.0.0.1:5433/yugabyte?sslmode=disable
     username: yugabyte
     password: yugabyte
+    hikari:
+      maxLifetime: 20000  # 20s, shorter than DB’s idle timeout
+      idleTimeout: 5000   # 5s
+      validationTimeout: 5000
 
   liquibase:
     enabled: true
