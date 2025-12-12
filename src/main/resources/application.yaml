@@ -8,6 +8,7 @@ spring:
     username: yugabyte
     password: yugabyte
     pool:
+      enabled: true
       max-size: 10
       max-idle-time: 10s
       max-life-time: 20s

@@ -40,7 +40,9 @@ public class AccountController {
                         .balance(req.initialBalance())
                         .createdAt(Instant.now())
                         .build())
-                .flatMap(accountRepository::save);
+                .flux()
+                .concatMap(accountRepository::save)
+                .next();
     }
 
     public record CreateAccountRequest(String name, String currencyCode, java.math.BigDecimal initialBalance) {

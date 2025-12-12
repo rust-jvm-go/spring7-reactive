@@ -2,10 +2,12 @@ package initiative.java.spring7plus.spring7reactive.config;
 
 import javax.sql.DataSource;
 
-import com.zaxxer.hikari.HikariDataSource;
-import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import com.zaxxer.hikari.HikariDataSource;
+
+import liquibase.integration.spring.SpringLiquibase;
 
 /**
  * Explicit Liquibase configuration for this WebFlux + R2DBC application.
@@ -24,7 +26,7 @@ public class LiquibaseConfig {
         HikariDataSource ds = new HikariDataSource();
         ds.setJdbcUrl("jdbc:postgresql://localhost:5433/yugabyte");
         ds.setUsername("yugabyte");
-        ds.setPassword(""); // set if you add a password later
+        ds.setPassword("yugabyte"); // set if you add a password later
         return ds;
     }
 
