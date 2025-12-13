@@ -2,8 +2,10 @@ package initiative.java.spring7plus.spring7reactive.config;
 
 import javax.sql.DataSource;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -22,20 +24,31 @@ import liquibase.integration.spring.SpringLiquibase;
 public class LiquibaseConfig {
 
     @Bean
-    public DataSource dataSource() {
+    @ConfigurationProperties("spring.datasource.hikari")
+    public DataSource dataSource(
+            @Value("${spring.datasource.url}") String jdbcUrl,
+            @Value("${spring.datasource.username}") String username,
+            @Value("${spring.datasource.password}") String password) {
+        // Single source of truth: bind JDBC connection settings from application.yaml.
+        // @ConfigurationProperties allows Hikari pool tuning (timeouts, max size, etc.) via YAML.
         HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl("jdbc:postgresql://localhost:5433/yugabyte");
-        ds.setUsername("yugabyte");
-        ds.setPassword("yugabyte"); // set if you add a password later
+        ds.setJdbcUrl(jdbcUrl);
+        ds.setUsername(username);
+        ds.setPassword(password);
         return ds;
     }
 
     @Bean
-    public SpringLiquibase liquibase(DataSource dataSource) {
+    public SpringLiquibase liquibase(
+            DataSource dataSource,
+            @Value("${spring.liquibase.change-log}") String changeLog,
+            @Value("${spring.liquibase.enabled:true}") boolean enabled) {
+        // Liquibase needs JDBC even though the application uses R2DBC for reactive data access.
+        // This DataSource is for migrations only; application queries should use the R2DBC connection.
         SpringLiquibase liquibase = new SpringLiquibase();
         liquibase.setDataSource(dataSource);
-        liquibase.setChangeLog("classpath:db/changelog/db.changelog-master.yaml");
-        liquibase.setShouldRun(true);
+        liquibase.setChangeLog(changeLog);
+        liquibase.setShouldRun(enabled);
         return liquibase;
     }
 }
