@@ -9,8 +9,4 @@ services:
       - "5433:5433"   # YSQL (PostgreSQL-compatible)
       - "9042:9042"   # YCQL (not used now, but exposed for completeness)
     volumes:
-      - yugabytedb-data:/home/userone/localdev/data/docker/yugabyte/yb-data
-
-volumes:
-  yugabytedb-data:
-    driver: local
+      - ${YUGABYTE_DATA_DIR}:/home/yugabyte/yb-data
