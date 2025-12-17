@@ -20,8 +20,10 @@ spring:
     username: yugabyte
     password: yugabyte
     hikari:
-      maxLifetime: 20000  # 20s, shorter than DB’s idle timeout
-      idleTimeout: 5000   # 5s
+      maximumPoolSize: 1
+      minimumIdle: 0
+      maxLifetime: 30000  # 30s (Hikari enforces a minimum of 30s)
+      idleTimeout: 10000  # 10s
       validationTimeout: 5000
 
   liquibase:
