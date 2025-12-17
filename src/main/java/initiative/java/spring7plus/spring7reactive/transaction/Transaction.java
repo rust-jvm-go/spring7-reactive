@@ -1,4 +1,4 @@
-package initiative.java.spring7plus.spring7reactive.account;
+package initiative.java.spring7plus.spring7reactive.transaction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,14 +16,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Spring Data (R2DBC) maps this type to the "account" table.
+ * Spring Data (R2DBC) maps this type to the "account_transaction" table.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("account")
-public class Account implements Persistable<UUID> {
+@Table("account_transaction")
+public class Transaction implements Persistable<UUID> {
 
     // @Id marks the primary key column for Spring Data.
     @Id
@@ -32,15 +32,23 @@ public class Account implements Persistable<UUID> {
     @Transient
     private boolean newEntity;
 
-    private String name;
+    @Column("account_id")
+    private UUID accountId;
+
+    private TransactionType type;
+
+    // Use BigDecimal for money to avoid floating point rounding errors.
+    private BigDecimal amount;
 
     @Column("currency_code")
     private String currencyCode;
 
-    // Use BigDecimal for money to avoid floating point rounding errors.
-    private BigDecimal balance;
+    private String description;
 
     // Prefer java.time types for timestamps (timezone-safe and immutable).
+    @Column("occurred_at")
+    private Instant occurredAt;
+
     @Column("created_at")
     private Instant createdAt;
 

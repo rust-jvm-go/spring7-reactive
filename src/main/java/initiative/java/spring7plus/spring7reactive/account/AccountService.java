@@ -31,6 +31,7 @@ public class AccountService {
         // Mono<T> represents 0..1 element (here: the saved Account).
         Account account = Account.builder()
                 .id(UUID.randomUUID())
+                .newEntity(true)
                 .name(name)
                 .currencyCode(currencyCode)
                 .balance(initialBalance)

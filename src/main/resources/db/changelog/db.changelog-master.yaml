@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/db.changelog-001-account.yaml
+  - include:
+      file: db/changelog/db.changelog-002-transaction.yaml

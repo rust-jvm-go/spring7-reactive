@@ -1,0 +1,67 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-account-transaction
+      author: cascade
+      changes:
+        - createTable:
+            tableName: account_transaction
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: account_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: numeric(19,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency_code
+                  type: varchar(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: varchar(255)
+              - column:
+                  name: occurred_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: account_transaction
+            baseColumnNames: account_id
+            constraintName: fk_account_transaction_account
+            referencedTableName: account
+            referencedColumnNames: id
+        - createIndex:
+            tableName: account_transaction
+            indexName: idx_account_transaction_account_id
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            tableName: account_transaction
+            indexName: idx_account_transaction_account_id_occurred_at
+            columns:
+              - column:
+                  name: account_id
+              - column:
+                  name: occurred_at
