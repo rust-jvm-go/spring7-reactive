@@ -3,7 +3,9 @@ package initiative.java.spring7plus.spring7reactive.account;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,6 +26,12 @@ public class AccountService {
     public Flux<Account> getAllAccounts() {
         // Flux<T> represents 0..N elements over time.
         return accountRepository.findAll();
+    }
+
+    public Mono<Account> getAccount(UUID accountId) {
+        // Mono<T> allows returning 0..1 elements; raise 404 if nothing is found.
+        return accountRepository.findById(accountId)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found")));
     }
 
     public Mono<Account> createAccount(String name, String currencyCode, java.math.BigDecimal initialBalance) {

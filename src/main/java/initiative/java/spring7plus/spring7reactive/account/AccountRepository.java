@@ -7,7 +7,14 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 
 /**
- * ReactiveCrudRepository provides non-blocking CRUD operations backed by R2DBC.
+ * ReactiveCrudRepository provides non-blocking CRUD primitives:
+ * <ul>
+ *     <li>{@code save(..)} / {@code saveAll(..)} for create/update</li>
+ *     <li>{@code findById(..)}, {@code findAll(..)}, {@code existsById(..)}</li>
+ *     <li>{@code deleteById(..)}, {@code delete(..)}, {@code deleteAll(..)}</li>
+ *     <li>{@code count()}</li>
+ * </ul>
+ * so the interface only needs to declare extra derived queries such as {@code findByCurrencyCode}.
  */
 public interface AccountRepository extends ReactiveCrudRepository<Account, UUID> {
 
