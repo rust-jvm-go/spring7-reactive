@@ -16,7 +16,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Spring Data (R2DBC) maps this type to the "account" table.
+ * Domain aggregate representing a budgeting account (cash wallet, credit card, savings goal, etc.).
+ * <p>
+ * Each account tracks the user's display name, home currency, current balance snapshot, and creation timestamp.
+ * Transactions (income/expense) reference {@code account_id} to build the running ledger for this entity.
  */
 @Data
 @Builder
@@ -29,6 +32,8 @@ public class Account implements Persistable<UUID> {
     @Id
     private UUID id;
 
+    // Marked @Transient so Spring Data does not persist this helper flag; AccountService sets it before saves,
+    // allowing us to decide when Persistable#isNew returns true (prevents R2DBC from issuing UPDATEs for new rows).
     @Transient
     private boolean newEntity;
 

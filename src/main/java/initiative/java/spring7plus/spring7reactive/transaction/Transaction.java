@@ -16,7 +16,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Spring Data (R2DBC) maps this type to the "account_transaction" table.
+ * Ledger entry tied to an account that captures incoming or outgoing cash flow.
+ * <p>
+ * Each transaction stores the account reference, business type (income/expense),
+ * money amount + currency, optional human-readable memo, and timestamps for when
+ * the activity happened vs when it was recorded in the system.
  */
 @Data
 @Builder
