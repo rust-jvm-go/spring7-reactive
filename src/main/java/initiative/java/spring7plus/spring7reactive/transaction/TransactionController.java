@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,6 +62,14 @@ public class TransactionController {
             @RequestParam(defaultValue = "50") int count) {
         // Demonstrates a "bulk write" reactive flow: Flux<Transaction> from saveAll(...).
         return fakeBankService.generateAndSave(accountId, count);
+    }
+
+    /**
+     * Streams a live ledger feed as Server-Sent Events so clients can watch new entries arrive.
+     */
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<Transaction> streamTransactions(@PathVariable UUID accountId) {
+        return transactionService.streamTransactions(accountId);
     }
 
     /**

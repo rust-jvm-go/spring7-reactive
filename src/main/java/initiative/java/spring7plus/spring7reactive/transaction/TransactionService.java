@@ -1,11 +1,14 @@
 package initiative.java.spring7plus.spring7reactive.transaction;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ResponseStatusException;
 
 import initiative.java.spring7plus.spring7reactive.account.AccountRepository;
@@ -61,6 +64,30 @@ public class TransactionService {
                             .build();
 
                     return transactionRepository.save(transaction);
+                });
+    }
+
+    /**
+     * Emits a live ledger feed by polling the latest transactions on a fixed cadence.
+     * <p>
+     * R2DBC lacks tailable cursors today, so we approximate streaming by:
+     * <ol>
+     *     <li>Validating the account exists (404 otherwise).</li>
+     *     <li>Setting up {@link Flux#interval(Duration)} to poll every second.</li>
+     *     <li>Querying the most recent rows and deduplicating by {@link Transaction#getId()}.</li>
+     * </ol>
+     * Clients (UI dashboards, CLIs) consume this as Server-Sent Events.
+     */
+    public Flux<Transaction> streamTransactions(UUID accountId) {
+        return accountRepository.existsById(accountId)
+                .flatMapMany(exists -> {
+                    if (!exists) {
+                        return Flux.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+                    }
+
+                    return Flux.interval(Duration.ofSeconds(1))
+                            .flatMap(tick -> transactionRepository.findAllByAccountIdOrderByOccurredAtDesc(accountId).take(20))
+                            .distinctUntilChanged(Transaction::getId);
                 });
     }
 }
