@@ -1,4 +1,8 @@
 spring:
+  config:
+    # Load overrides from a .env file if present; matches Spring's relaxed binding.
+    import: optional:file:.env[.properties]
+
   application:
     name: spring7-reactive
 
@@ -33,3 +37,8 @@ spring:
   sql:
     init:
       mode: never
+
+app:
+  fx:
+    # Source this from .env (FX_ACCESS_KEY) or pass with -DFX_ACCESS_KEY=...
+    access-key: ${FX_ACCESS_KEY:}
