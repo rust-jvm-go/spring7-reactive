@@ -89,9 +89,38 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-test-autoconfigure</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Test Dependencies for Database-Free Testing Strategy -->
+		
+		<!-- Reactor Test: Provides StepVerifier for testing reactive streams -->
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
+		<!-- Spring Boot WebFlux Test: Provides @WebFluxTest and WebTestClient for slice testing -->
+		<!-- Enables fast HTTP contract testing without full application context -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		
+		<!-- Byte Buddy Agent: Required for Mockito dynamic proxy generation in Java 21+ -->
+		<!-- Resolves "Mockito/ByteBuddy dynamic agent warning" in test output -->
 		<dependency>
 			<groupId>net.bytebuddy</groupId>
 			<artifactId>byte-buddy-agent</artifactId>
