@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Pattern;
 import reactor.core.publisher.Mono;
 
 /**
- * REST facade exposing the minimal FX conversion endpoint required for Checkpoint 5.
+ * REST facade exposing the minimal FX conversion endpoint.
  * <p>
  * Clients can request {@code /api/fx/convert?from=EUR&to=USD&amount=123.45} and receive
  * a JSON body describing the rate, converted amount, and metadata returned by the FX provider.
@@ -30,7 +30,7 @@ public class FxController {
         this.fxService = fxService;
     }
 
-    @GetMapping("/convert")
+    @PostMapping("/convert")
     public Mono<FxClient.FxQuote> convert(
             @RequestParam @Pattern(regexp = "[A-Z]{3}") String from,
             @RequestParam @Pattern(regexp = "[A-Z]{3}") String to,

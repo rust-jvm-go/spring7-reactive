@@ -43,13 +43,14 @@ public class FxClient {
     /**
      * Converts the given amount from source currency to target currency using exchangerate.host.
      *
-     * @param from   ISO currency code (e.g. "USD")
-     * @param to     ISO currency code (e.g. "PHP")
+     * @param from   ISO currency code (e.g. "EUR")
+     * @param to     ISO currency code (e.g. "USD")
      * @param amount Amount to convert
      * @return Mono emitting the FX quote (rate and converted result)
      */
     public Mono<FxQuote> convert(String from, String to, BigDecimal amount) {
-        return exchangerateHostWebClient.get()
+        // Uses POST
+        return exchangerateHostWebClient.post()
                 .uri(uriBuilder -> uriBuilder.path("/convert")
                         .queryParam("from", from)
                         .queryParam("to", to)
