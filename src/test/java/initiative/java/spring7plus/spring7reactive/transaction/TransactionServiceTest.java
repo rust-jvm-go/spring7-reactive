@@ -2,7 +2,6 @@ package initiative.java.spring7plus.spring7reactive.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,8 +33,7 @@ import reactor.test.StepVerifier;
  * - Uses StepVerifier for reactive stream testing
  * - Verifies both happy path and error scenarios
  * - Validates repository interactions and argument capturing
- * 
- * Execution time: ~0.08s (no database or Spring context required)
+ * - No database or Spring context required
  */
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
