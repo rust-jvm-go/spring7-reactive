@@ -2,11 +2,13 @@ package initiative.java.spring7plus.spring7reactive.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.server.ResponseStatusException;
 
 import initiative.java.spring7plus.spring7reactive.account.AccountController.CreateAccountRequest;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
+import net.jqwik.api.Combinators;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.Provide;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -48,7 +56,12 @@ class AccountControllerTest {
     AccountService accountService;
 
     private static final UUID ACCOUNT_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    private static final Instant FIXED_CREATED_AT = Instant.parse("2026-01-12T00:00:00Z"); // Deterministic timestamp keeps JSON assertions stable.
 
+    /**
+     * Ensures GET /api/accounts returns the mocked Flux and that WebTestClient deserializes it correctly by
+     * verifying status, list size, and representative fields.
+     */
     @Test
     void getAllAccountsReturnsFluxOfAccounts() {
         // Arrange: Create test accounts with different properties
@@ -76,6 +89,9 @@ class AccountControllerTest {
         verify(accountService).getAllAccounts();
     }
 
+    /**
+     * Verifies GET /api/accounts/{id} maps a Mono<Account> into a 200 JSON payload with expected field values.
+     */
     @Test
     void getAccountReturnsAccountWhenExists() {
         // Arrange: Create test account
@@ -100,6 +116,9 @@ class AccountControllerTest {
         verify(accountService).getAccount(ACCOUNT_ID);
     }
 
+    /**
+     * Confirms controller propagates service-level 404 by asserting WebTestClient observes HTTP 404 status.
+     */
     @Test
     void getAccountReturns404WhenNotFound() {
         // Arrange: Mock service to return 404 error (account not found scenario)
@@ -116,66 +135,86 @@ class AccountControllerTest {
         verify(accountService).getAccount(ACCOUNT_ID);
     }
 
+    /**
+     * Validates POST /api/accounts returns 201 and matches the JSON contract via jsonPath assertions.
+     */
     @Test
-    void createAccountPersistsAndReturnsCreatedAccount() {
-        // Arrange: Create request and expected response
+    void createAccountReturns201AndMatchesJsonContract() {
+        // Shows how a slice test can validate both service integration and the serialized HTTP contract.
         CreateAccountRequest request = new CreateAccountRequest(
-                "Investment Account", 
-                "USD", 
+                "Investment Account",
+                "USD",
                 new BigDecimal("10000.00"));
 
-        Account createdAccount = createAccount(UUID.randomUUID(), 
-                request.name(), request.currencyCode(), request.initialBalance());
+        Account createdAccount = Account.builder()
+                .id(UUID.fromString("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
+                .newEntity(false)
+                .name(request.name())
+                .currencyCode(request.currencyCode())
+                .balance(request.initialBalance())
+                .createdAt(FIXED_CREATED_AT)
+                .build();
 
         when(accountService.createAccount(any(String.class), any(String.class), any(BigDecimal.class)))
                 .thenReturn(Mono.just(createdAccount));
 
-        // Act & Assert: Verify creation endpoint
         webTestClient.post()
                 .uri("/api/accounts")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
                 .exchange()
                 .expectStatus().isCreated()
-                .expectBody(Account.class)
-                .value(response -> {
-                    assertThat(response.getName()).isEqualTo(request.name());
-                    assertThat(response.getCurrencyCode()).isEqualTo(request.currencyCode());
-                    assertThat(response.getBalance()).isEqualTo(request.initialBalance());
-                    assertThat(response.getId()).isNotNull();
-                    assertThat(response.getCreatedAt()).isNotNull();
-                });
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
+                .expectBody() // JSON-path checks protect the HTTP contract even if the Account entity evolves.
+                .jsonPath("$.id").isEqualTo(createdAccount.getId().toString())
+                .jsonPath("$.name").isEqualTo(request.name())
+                .jsonPath("$.currencyCode").isEqualTo(request.currencyCode())
+                .jsonPath("$.balance").isEqualTo(request.initialBalance().doubleValue())
+                .jsonPath("$.createdAt").isEqualTo(FIXED_CREATED_AT.toString());
 
-        // Verify service was called with correct parameters
         verify(accountService).createAccount(request.name(), request.currencyCode(), request.initialBalance());
     }
 
-    @Test
-    void createAccountHandlesReactiveRequestBody() {
-        // Arrange: Test reactive request body processing
-        CreateAccountRequest request = new CreateAccountRequest(
-                "Reactive Test Account", 
-                "JPY", 
-                new BigDecimal("75000.00"));
+    /**
+     * Property-based variant: regardless of which Accounts the service emits, the GET endpoint must echo them 1:1.
+     * Using jqwik here shows juniors how to express "for all lists" invariants without hand-writing dozens of samples.
+     */
+    @Property(tries = 25)
+    void getAllAccountsEchoesServiceResults(@ForAll("accountLists") List<Account> accountsFromService) {
+        AccountService serviceStub = mock(AccountService.class);
+        when(serviceStub.getAllAccounts()).thenReturn(Flux.fromIterable(accountsFromService));
 
-        Account createdAccount = createAccount(UUID.randomUUID(), 
-                request.name(), request.currencyCode(), request.initialBalance());
+        WebTestClient client = WebTestClient.bindToController(new AccountController(serviceStub)).build();
+
+        client.get()
+                .uri("/api/accounts")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(Account.class)
+                .value(response -> assertThat(response).containsExactlyElementsOf(accountsFromService));
+    }
+
+    /**
+     * Guards the error path by forcing AccountService to emit BAD_REQUEST and ensuring the controller surfaces it.
+     */
+    @Test
+    void createAccountReturnsBadRequestWhenServiceValidatesInput() {
+        // Highlights how controller slice tests capture reactive error propagation.
+        CreateAccountRequest request = new CreateAccountRequest(
+                "",
+                "USD",
+                new BigDecimal("0.00"));
 
         when(accountService.createAccount(any(String.class), any(String.class), any(BigDecimal.class)))
-                .thenReturn(Mono.just(createdAccount));
+                .thenReturn(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency not supported")));
 
-        // Act & Assert: Verify reactive body consumption works correctly
         webTestClient.post()
                 .uri("/api/accounts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Mono.just(request), CreateAccountRequest.class)  // Reactive body
+                .bodyValue(request)
                 .exchange()
-                .expectStatus().isCreated()
-                .expectBody(Account.class)
-                .value(response -> {
-                    assertThat(response.getName()).isEqualTo("Reactive Test Account");
-                    assertThat(response.getCurrencyCode()).isEqualTo("JPY");
-                });
+                .expectStatus().isBadRequest(); // Confirms WebFlux propagates service-level validation failures.
 
         verify(accountService).createAccount(request.name(), request.currencyCode(), request.initialBalance());
     }
@@ -196,7 +235,36 @@ class AccountControllerTest {
                 .name(name)
                 .currencyCode(currencyCode)
                 .balance(balance)
-                .createdAt(Instant.now().minusSeconds(86400))  // Created yesterday
+                .createdAt(FIXED_CREATED_AT) // Reuse the fixed instant so each invocation yields identical serialized payloads.
                 .build();
+    }
+
+    /**
+     * jqwik generator for realistic Account lists (<=5 elements keeps property runs fast for WebTestClient).
+     */
+    @Provide
+    Arbitrary<List<Account>> accountLists() {
+        return accountArbitrary().list().ofMaxSize(5);
+    }
+
+    private Arbitrary<Account> accountArbitrary() {
+        Arbitrary<UUID> ids = Arbitraries.create(UUID::randomUUID);
+        Arbitrary<String> names = Arbitraries.strings()
+                .withCharRange('A', 'Z')
+                .ofMinLength(3)
+                .ofMaxLength(20);
+        Arbitrary<String> currencies = Arbitraries.of("USD", "EUR", "JPY", "GBP");
+        Arbitrary<BigDecimal> balances = Arbitraries.longs().between(0, 1_000_000)
+                .map(cents -> BigDecimal.valueOf(cents, 2));
+
+        return Combinators.combine(ids, names, currencies, balances)
+                .as((id, name, currency, balance) -> Account.builder()
+                        .id(id)
+                        .newEntity(false)
+                        .name(name)
+                        .currencyCode(currency)
+                        .balance(balance)
+                        .createdAt(FIXED_CREATED_AT)
+                        .build());
     }
 }

@@ -2,6 +2,7 @@ package initiative.java.spring7plus.spring7reactive.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +21,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
+import net.jqwik.api.Combinators;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.Provide;
 
 /**
  * Pure unit tests for AccountService.
@@ -36,8 +43,8 @@ import reactor.test.StepVerifier;
 @ExtendWith(MockitoExtension.class)
 class AccountServiceTest {
 
-    // Test account ID used consistently across all test methods
     private static final UUID ACCOUNT_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    private static final Instant FIXED_CREATED_AT = Instant.parse("2026-01-12T00:00:00Z"); // Deterministic fixture keeps assertions stable.
 
     // Mock dependencies - these will be injected into the service under test
     @Mock
@@ -53,6 +60,11 @@ class AccountServiceTest {
         // Currently empty as we use specific mocks per test for clarity
     }
 
+    /**
+     * Ensures {@link AccountService#getAllAccounts()} streams through the repository result
+     * by arranging two accounts, mocking {@code findAll()}, and verifying via StepVerifier
+     * that each one is emitted before the Flux completes.
+     */
     @Test
     void getAllAccountsReturnsAllAccountsFromRepository() {
         // Arrange: Create test accounts with different properties
@@ -77,6 +89,11 @@ class AccountServiceTest {
         verify(accountRepository).findAll();
     }
 
+    /**
+     * Verifies {@link AccountService#getAccount(UUID)} returns the matching entity when present
+     * by stubbing {@code findById()} and asserting StepVerifier receives a single Account containing
+     * the expected ID/name/currency before completing.
+     */
     @Test
     void getAccountReturnsAccountWhenExists() {
         // Arrange: Create test account
@@ -101,6 +118,10 @@ class AccountServiceTest {
         verify(accountRepository).findById(ACCOUNT_ID);
     }
 
+    /**
+     * Confirms the service surfaces a 404 when {@code findById()} is empty by wiring it to
+     * {@link Mono#empty()}, executing the call, and asserting StepVerifier observes a ResponseStatusException.
+     */
     @Test
     void getAccountReturns404WhenAccountNotFound() {
         // Arrange: Mock repository to return empty Mono (account not found)
@@ -122,6 +143,11 @@ class AccountServiceTest {
         verify(accountRepository).findById(ACCOUNT_ID);
     }
 
+    /**
+     * Covers the happy path for {@link AccountService#createAccount(String, String, java.math.BigDecimal)}
+     * by mocking {@code save()}, using StepVerifier to assert the returned Account mirrors inputs,
+     * then capturing the persisted entity to ensure INSERT-required fields (id/newEntity/createdAt) are set.
+     */
     @Test
     void createAccountPersistsAndReturnsAccount() {
         // Arrange: Define creation parameters
@@ -161,9 +187,13 @@ class AccountServiceTest {
         assertThat(persisted.getCreatedAt()).isNotNull();  // Should be set by service
     }
 
+    /**
+     * Exercises the generated ID/timestamp branch by mocking {@code save()} and then inspecting the
+     * captured Account to confirm {@code isNew}=true and {@code createdAt} is within the reasonable clock window.
+     */
     @Test
     void createAccountGeneratesIdAndTimestamp() {
-        // Arrange: Test that service generates proper ID and timestamp
+        // Arrange: Exercise initialization defaults for ID/timestamp.
         String name = "Test Account";
         String currencyCode = "JPY";
         BigDecimal initialBalance = new BigDecimal("75000.00");
@@ -198,6 +228,44 @@ class AccountServiceTest {
     }
 
     /**
+     * Guards against repository failures hanging the reactive pipeline by forcing {@code save()} to error
+     * and asserting StepVerifier relays the IllegalStateException to subscribers.
+     */
+    @Test
+    void createAccountPropagatesRepositoryErrors() {
+        // Regression guard: StepVerifier should capture repository failures without hanging.
+        when(accountRepository.save(any(Account.class)))
+                .thenReturn(Mono.error(new IllegalStateException("Repository unavailable")));
+
+        StepVerifier.create(accountService.createAccount("Outage Test", "USD", BigDecimal.ONE))
+                .expectErrorMatches(throwable -> throwable instanceof IllegalStateException &&
+                        throwable.getMessage().contains("Repository unavailable"))
+                .verify();
+
+        verify(accountRepository).save(any(Account.class));
+    }
+
+    /**
+     * Property-based variant: for any random account creation payload, the service should echo the input fields
+     * (name/currency/balance) back to the caller even when UUID/timestamps are generated at runtime.
+     */
+    @Property(tries = 25)
+    void createAccountEchoesInputsForAnyPayload(@ForAll("accountCreationParams") AccountCreationParams params) {
+        AccountRepository repository = mock(AccountRepository.class);
+        AccountService service = new AccountService(repository);
+
+        when(repository.save(any(Account.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+        StepVerifier.create(service.createAccount(params.name(), params.currencyCode(), params.initialBalance()))
+                .assertNext(account -> {
+                    assertThat(account.getName()).isEqualTo(params.name());
+                    assertThat(account.getCurrencyCode()).isEqualTo(params.currencyCode());
+                    assertThat(account.getBalance()).isEqualTo(params.initialBalance());
+                })
+                .verifyComplete();
+    }
+
+    /**
      * Factory method to create test Account instances.
      * 
      * @param id Unique identifier for the account
@@ -213,7 +281,26 @@ class AccountServiceTest {
                 .name(name)
                 .currencyCode(currencyCode)
                 .balance(balance)
-                .createdAt(Instant.now().minusSeconds(86400))  // Created yesterday
+                .createdAt(FIXED_CREATED_AT)  // Stable timestamp ensures reproducible assertions.
                 .build();
     }
+
+    /**
+     * jqwik generator for createAccount property tests; focuses on reasonable strings/currencies so shrinking stays readable.
+     */
+    @Provide
+    Arbitrary<AccountCreationParams> accountCreationParams() {
+        Arbitrary<String> names = Arbitraries.strings()
+                .withCharRange('A', 'Z')
+                .ofMinLength(3)
+                .ofMaxLength(20);
+        Arbitrary<String> currencies = Arbitraries.of("USD", "EUR", "JPY", "GBP");
+        Arbitrary<BigDecimal> balances = Arbitraries.longs().between(0, 1_000_000)
+                .map(cents -> BigDecimal.valueOf(cents, 2));
+
+        return Combinators.combine(names, currencies, balances)
+                .as(AccountCreationParams::new);
+    }
+
+    record AccountCreationParams(String name, String currencyCode, BigDecimal initialBalance) { }
 }

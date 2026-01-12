@@ -127,6 +127,13 @@
 			<version>${bytebuddy.agent.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<!-- jqwik: Property-based testing engine for JUnit Platform -->
+		<dependency>
+			<groupId>net.jqwik</groupId>
+			<artifactId>jqwik</artifactId>
+			<version>1.9.3</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

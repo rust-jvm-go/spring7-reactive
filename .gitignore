@@ -50,6 +50,8 @@ build/
 
 ### VS Code ###
 .vscode/
+.bloop/
+.metals/
 
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -59,3 +61,5 @@ target/
 
 HELP.md
 /.env
+
+.jqwik-database
