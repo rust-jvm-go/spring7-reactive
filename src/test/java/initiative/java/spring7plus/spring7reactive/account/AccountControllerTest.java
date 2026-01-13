@@ -73,6 +73,9 @@ class AccountControllerTest {
         when(accountService.getAllAccounts()).thenReturn(Flux.just(account1, account2));
 
         // Act & Assert: Verify HTTP response and account list
+        // This demonstrates DUAL VERIFICATION PATTERN - two complementary verification types:
+        
+        // 1. HTTP RESPONSE VERIFICATION (Black-box testing): Validates what the client receives
         webTestClient.get()
                 .uri("/api/accounts")
                 .accept(MediaType.APPLICATION_JSON)
@@ -80,13 +83,21 @@ class AccountControllerTest {
                 .expectStatus().isOk()
                 .expectBodyList(Account.class)
                 .value(accounts -> {
+                    // Validates API contract: correct data structure and values
                     assertThat(accounts).hasSize(2);
                     assertThat(accounts).containsExactly(account1, account2);
                     assertThat(accounts.get(0).getName()).isEqualTo("Savings Account");
                     assertThat(accounts.get(1).getCurrencyCode()).isEqualTo("EUR");
                 });
 
+        // 2. MOCK INTERACTION VERIFICATION (White-box testing): Validates internal behavior
+        // Confirms controller properly delegates to service layer (architectural integrity)
         verify(accountService).getAllAccounts();
+        
+        // WHY BOTH ARE ESSENTIAL:
+        // - HTTP verifier ensures API contract is fulfilled (what clients get)
+        // - Mock verifier ensures controller does its job correctly (how it works)
+        // - Together they provide complete coverage of both external and internal contracts
     }
 
     /**
