@@ -63,3 +63,7 @@ HELP.md
 /.env
 
 .jqwik-database
+
+.ai
+.aiassistant
+
